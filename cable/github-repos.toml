@@ -1,0 +1,18 @@
+[metadata]
+name = "github-repos"
+description = "Repositories from the authenticated GitHub account"
+requirements = ["gh"]
+
+[source]
+command = '''
+$owner = gh api user --jq .login
+gh repo list $owner --limit 500 --json nameWithOwner,description,updatedAt,isPrivate --jq '.[] | [.nameWithOwner, (if ((.description // "") | length) > 0 then .description else "No description" end), (.updatedAt // ""), (if .isPrivate then "private" else "public" end)] | @tsv'
+'''
+display = "{split:\t:0} - {split:\t:1} [{split:\t:3}, {split:\t:2}]"
+output = "{split:\t:0}"
+
+[preview]
+command = "gh repo view '{split:\t:0}'"
+
+[keybindings]
+shortcut = "f4"

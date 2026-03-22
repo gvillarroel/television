@@ -1,0 +1,205 @@
+[metadata]
+name = "repos"
+description = "GitHub repositories touched in the last 6 months"
+requirements = ["gh"]
+
+[source]
+command = '''
+$cutoff = (Get-Date).AddMonths(-6)
+$fromIso = $cutoff.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+$cutoffDate = $cutoff.ToString("yyyy-MM-dd")
+$login = gh api user --jq .login
+$rows = @()
+
+$contribQuery = 'query($from: DateTime!) { viewer { contributionsCollection(from: $from) { commitContributionsByRepository(maxRepositories: 100) { repository { nameWithOwner } contributions(first: 100) { nodes { occurredAt } } } pullRequestContributionsByRepository(maxRepositories: 100) { repository { nameWithOwner } contributions(first: 100) { nodes { occurredAt } } } pullRequestReviewContributionsByRepository(maxRepositories: 100) { repository { nameWithOwner } contributions(first: 100) { nodes { occurredAt } } } } } }'
+$contribRows = gh api graphql -F from="$fromIso" -f query="$contribQuery" --jq '[(.data.viewer.contributionsCollection.commitContributionsByRepository[] | select((.contributions.nodes | length) > 0) | [.repository.nameWithOwner, (.contributions.nodes | map(.occurredAt) | max)] | @tsv), (.data.viewer.contributionsCollection.pullRequestContributionsByRepository[] | select((.contributions.nodes | length) > 0) | [.repository.nameWithOwner, (.contributions.nodes | map(.occurredAt) | max)] | @tsv), (.data.viewer.contributionsCollection.pullRequestReviewContributionsByRepository[] | select((.contributions.nodes | length) > 0) | [.repository.nameWithOwner, (.contributions.nodes | map(.occurredAt) | max)] | @tsv)][]'
+if ($contribRows) {
+  $rows += ($contribRows -split "`r?`n" | Where-Object { $_ })
+}
+
+$starQuery = 'query($endCursor: String) { viewer { starredRepositories(first: 100, after: $endCursor, orderBy: { field: STARRED_AT, direction: DESC }) { edges { starredAt node { nameWithOwner } } pageInfo { hasNextPage endCursor } } } }'
+$starRows = gh api graphql --paginate -f query="$starQuery" --jq '.data.viewer.starredRepositories.edges[] | [.node.nameWithOwner, .starredAt] | @tsv'
+if ($starRows) {
+  $rows += (($starRows -split "`r?`n" | Where-Object { $_ -and ([datetimeoffset](($_ -split "`t", 2)[1])) -ge $cutoff.ToUniversalTime() }))
+}
+
+$pinnedQuery = 'query { viewer { pinnedItems(first: 10, types: REPOSITORY) { nodes { ... on Repository { nameWithOwner } } } } }'
+try {
+  $pinnedData = gh api graphql -f query="$pinnedQuery" | ConvertFrom-Json
+  $pinnedAt = [datetimeoffset]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+  $pinnedRows = @($pinnedData.data.viewer.pinnedItems.nodes | ForEach-Object { if ($_.nameWithOwner) { "{0}`t{1}" -f $_.nameWithOwner, $pinnedAt } })
+  if ($pinnedRows) {
+    $rows += $pinnedRows
+  }
+} catch {
+}
+
+$prRows = gh search prs --commenter "$login" --updated ">=$cutoffDate" --limit 1000 --json repository,updatedAt --jq '.[] | [.repository.nameWithOwner, .updatedAt] | @tsv' 2>$null
+if ($prRows) {
+  $rows += ($prRows -split "`r?`n" | Where-Object { $_ })
+}
+
+$rows |
+  ForEach-Object {
+    $parts = $_ -split "`t", 2
+    if ($parts.Length -eq 2) {
+      [pscustomobject]@{
+        Repo = $parts[0]
+        At = [datetimeoffset]$parts[1]
+      }
+    }
+  } |
+  Group-Object Repo |
+  ForEach-Object {
+    $latest = $_.Group | Sort-Object At -Descending | Select-Object -First 1
+    "{0:yyyy-MM-dd} - {1}`t{1}" -f $latest.At.LocalDateTime, $latest.Repo
+  } |
+  Sort-Object -Descending
+'''
+display = "{split:\t:0}"
+output = "{split:\t:1}"
+
+[preview]
+command = '''
+$entry = '{}'
+$repo = ([regex]::Match($entry, '[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+')).Value
+function Format-Timestamp($value) {
+  if (-not $value) { return "n/a" }
+  try {
+    return (Get-Date -Date $value).ToString("yyyy-MM-dd HH:mm")
+  } catch {
+    return $value
+  }
+}
+
+function Trim-Text($value, $max = 88) {
+  if (-not $value) { return "" }
+  $text = ($value -replace "\s+", " ").Trim()
+  if ($text.Length -le $max) { return $text }
+  return $text.Substring(0, $max - 1) + "…"
+}
+
+try {
+  if (-not $repo) {
+    throw "Could not extract repository from entry: $entry"
+  }
+
+  $repoData = gh api "repos/$repo" | ConvertFrom-Json
+  $repoParts = $repo -split "/", 2
+  $pulls = @(gh api "repos/$repo/pulls?state=open&sort=updated&direction=desc&per_page=3" | ConvertFrom-Json)
+  $issues = @(gh api "repos/$repo/issues?state=open&sort=updated&direction=desc&per_page=10" | ConvertFrom-Json | Where-Object { -not $_.pull_request } | Select-Object -First 3)
+  $commits = @(gh api "repos/$repo/commits?per_page=3" | ConvertFrom-Json)
+  $discussions = @()
+
+  $release = $null
+  try {
+    $release = gh api "repos/$repo/releases/latest" 2>$null | ConvertFrom-Json
+  } catch {
+  }
+
+  if ($repoData.has_discussions -and $repoParts.Length -eq 2) {
+    $discussionQuery = @"
+query {
+  repository(owner: "$($repoParts[0])", name: "$($repoParts[1])") {
+    discussions(first: 3, orderBy: {field: UPDATED_AT, direction: DESC}) {
+      nodes {
+        number
+        title
+        updatedAt
+        author { login }
+        category { name }
+      }
+    }
+  }
+}
+"@
+    try {
+      $discussionData = gh api graphql -f query="$discussionQuery" | ConvertFrom-Json
+      $discussions = @($discussionData.data.repository.discussions.nodes)
+    } catch {
+    }
+  }
+
+  $lines = New-Object System.Collections.Generic.List[string]
+  $lines.Add($repoData.full_name)
+  $lines.Add("")
+  if ($repoData.description) {
+    $lines.Add($repoData.description)
+    $lines.Add("")
+  }
+  $lines.Add("What is happening")
+  $lines.Add("Last push: $(Format-Timestamp $repoData.pushed_at)")
+  $lines.Add("Default branch: $($repoData.default_branch)")
+  $lines.Add("Open issues: $($repoData.open_issues_count)")
+  $lines.Add("Stars: $($repoData.stargazers_count) | Forks: $($repoData.forks_count)")
+  if ($release) {
+    $lines.Add("Latest release: $($release.tag_name) ($(Format-Timestamp $release.published_at))")
+  }
+  $lines.Add("")
+  $lines.Add("Recent PRs")
+  if ($pulls.Count -gt 0) {
+    foreach ($pr in $pulls) {
+      $lines.Add("- #$($pr.number) $(Trim-Text $pr.title 72) [$($pr.user.login), $(Format-Timestamp $pr.updated_at)]")
+    }
+  } else {
+    $lines.Add("- No open PRs")
+  }
+  $lines.Add("")
+  $lines.Add("Recent issues")
+  if ($issues.Count -gt 0) {
+    foreach ($issue in $issues) {
+      $lines.Add("- #$($issue.number) $(Trim-Text $issue.title 72) [$($issue.user.login), $(Format-Timestamp $issue.updated_at)]")
+    }
+  } else {
+    $lines.Add("- No recent open issues")
+  }
+  $lines.Add("")
+  $lines.Add("Recent discussions")
+  if ($discussions.Count -gt 0) {
+    foreach ($discussion in $discussions) {
+      $author = if ($discussion.author -and $discussion.author.login) { $discussion.author.login } else { "unknown" }
+      $category = if ($discussion.category -and $discussion.category.name) { $discussion.category.name } else { "Discussion" }
+      $lines.Add("- #$($discussion.number) $(Trim-Text $discussion.title 72) [$category, $author, $(Format-Timestamp $discussion.updatedAt)]")
+    }
+  } elseif ($repoData.has_discussions) {
+    $lines.Add("- No recent discussions")
+  } else {
+    $lines.Add("- Discussions are disabled")
+  }
+  $lines.Add("")
+  $lines.Add("Recent commits")
+  if ($commits.Count -gt 0) {
+    foreach ($commit in $commits) {
+      $headline = ($commit.commit.message -split "`r?`n")[0]
+      $author = if ($commit.author -and $commit.author.login) { $commit.author.login } else { $commit.commit.author.name }
+      $lines.Add("- $($commit.sha.Substring(0,7)) $(Trim-Text $headline 72) [$author, $(Format-Timestamp $commit.commit.author.date)]")
+    }
+  } else {
+    $lines.Add("- No recent commits")
+  }
+  $lines -join "`n"
+} catch {
+  "Preview error for $repo`n$($_.Exception.Message)"
+}
+'''
+
+[keybindings]
+shortcut = "f5"
+ctrl-d = "actions:open_discussions"
+ctrl-p = "actions:open_prs"
+enter = "actions:open_issues"
+
+[actions.open_issues]
+description = "Browse repository issues"
+command = "$env:TV_REPO = '{split:\\t:1}'; tv repo-issues"
+mode = "execute"
+
+[actions.open_discussions]
+description = "Browse repository discussions"
+command = "$env:TV_REPO = '{split:\\t:1}'; tv repo-discussions"
+mode = "execute"
+
+[actions.open_prs]
+description = "Browse repository pull requests"
+command = "$env:TV_REPO = '{split:\\t:1}'; tv repo-prs"
+mode = "execute"

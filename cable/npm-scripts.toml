@@ -1,0 +1,15 @@
+[metadata]
+name = "npm-scripts"
+description = "Scripts from the current package.json"
+requirements = ["node"]
+
+[source]
+command = "if (Test-Path package.json) { node -e \"const p=require('./package.json'); for (const [name, script] of Object.entries(p.scripts || {})) console.log(`${name}|${script}`)\" }"
+display = "{split:\\|:0}\t{split:\\|:1}"
+output = "{split:\\|:0}"
+
+[preview]
+command = "node -e \"const p=require('./package.json'); const name=process.argv[1]; const script=(p.scripts || {})[name]; if (script) console.log(script)\" '{split:\\|:0}'"
+
+[keybindings]
+shortcut = "f5"

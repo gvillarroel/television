@@ -1,0 +1,15 @@
+[metadata]
+name = "git-log"
+description = "Recent commits with full patch preview"
+requirements = ["git"]
+
+[source]
+command = "git log --color=never --decorate --oneline -n 200 | ForEach-Object { if ($_ -match '^(\\S+)\\s+(.*)$') { '{0}|{1}' -f $matches[1], $matches[2] } }"
+display = "{split:\\|:0}\t{split:\\|:1}"
+output = "{split:\\|:0}"
+
+[preview]
+command = "git show --color=always --stat --patch --format=fuller '{split:\\|:0}'"
+
+[keybindings]
+shortcut = "f8"

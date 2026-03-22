@@ -1,0 +1,22 @@
+[metadata]
+name = "dev"
+description = "Projects under ~/dev with repository and stack signals"
+requirements = ["git"]
+
+[source]
+command = "eza -1 $HOME/dev"
+display = "{}"
+output = "C:/Users/villa/dev/{}"
+
+
+[preview]
+command = "eza -la --group-directories-first --color=always 'C:/Users/villa/dev/{}'"
+header = "Project: {}"
+
+[keybindings]
+enter = "actions:open"
+
+[actions.open]
+description = "Browse project contents"
+command = "cd C:/Users/villa/dev/{}; tv files"
+mode = "fork"

@@ -1,0 +1,22 @@
+[metadata]
+name = "folder"
+description = "Browse files and directories in the current folder"
+requirements = ["fd", "bat", "eza"]
+
+[source]
+command = "fd -d 1 -H ."
+display = "{}"
+output = "{}"
+
+[preview]
+command = "if ((Get-Item '{}').PSIsContainer) { eza -la --group-directories-first --color=always '{}' } else { bat -n --color=always '{}' }"
+header = "{}"
+env = { BAT_THEME = "ansi" }
+
+[keybindings]
+enter = "actions:open"
+
+[actions.open]
+description = "Open directory or select file"
+command = "if ((Get-Item '{}').PSIsContainer) { tv folder '{}' } else { Write-Output '{}' }"
+mode = "execute"

@@ -1,0 +1,16 @@
+[metadata]
+name = "git-status"
+description = "Modified files in the current repository"
+requirements = ["git", "bat"]
+
+[source]
+command = "git status --short --untracked-files=all | ForEach-Object { if ($_.Length -ge 4) { '{0}|{1}' -f $_.Substring(3), $_.Substring(0,2).Trim() } }"
+display = "[{split:\\|:1}] {split:\\|:0}"
+output = "{split:\\|:0}"
+
+[preview]
+command = "bat -n --color=always '{split:\\|:0}'"
+env = { BAT_THEME = "ansi" }
+
+[keybindings]
+shortcut = "f3"

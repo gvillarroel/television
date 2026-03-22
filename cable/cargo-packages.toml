@@ -1,0 +1,16 @@
+[metadata]
+name = "cargo-packages"
+description = "Rust packages detected in the current workspace"
+requirements = ["fd", "bat"]
+
+[source]
+command = "fd -g Cargo.toml -HI -d 5 | ForEach-Object { $name = (Select-String -Path $_ -Pattern '^name\\s*=\\s*\"([^\"]+)\"' | Select-Object -First 1).Matches.Groups[1].Value; if ($name) { '{0}|{1}' -f $name, $_ } }"
+display = "{split:\\|:0}\t{split:\\|:1}"
+output = "{split:\\|:0}"
+
+[preview]
+command = "bat -n --color=always '{split:\\|:1}'"
+env = { BAT_THEME = "ansi" }
+
+[keybindings]
+shortcut = "f6"

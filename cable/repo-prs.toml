@@ -1,0 +1,94 @@
+[metadata]
+name = "repo-prs"
+description = "Pull requests for the repository selected from the repos channel"
+requirements = ["gh"]
+
+[source]
+command = '''
+if (-not $env:TV_REPO) { throw "TV_REPO is not set" }
+function Invoke-Gh {
+  param([scriptblock]$Command)
+
+  $result = & $Command 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    $message = ($result | Out-String).Trim()
+    if (-not $message) {
+      $message = "gh command failed"
+    }
+    $message = ($message -replace "[`r`n`t]+", " ")
+    throw $message
+  }
+
+  return $result
+}
+
+$fallbackUrl = "https://github.com/$env:TV_REPO/pulls"
+try {
+  $rows = Invoke-Gh {
+    gh pr list --repo $env:TV_REPO --state open --limit 200 --json number,title,author,updatedAt,url --jq '.[] | [.number, .title, (.author.login // "unknown"), .updatedAt, .url] | @tsv'
+  }
+  if ($rows) {
+    $rows
+  } else {
+    "0`tNo open pull requests`t-`t-`t$fallbackUrl`t"
+  }
+} catch {
+  $errorMessage = ($_.Exception.Message -replace "[`r`n`t]+", " ")
+  "0`tUnable to load pull requests`t-`t-`t$fallbackUrl`t$errorMessage"
+}
+'''
+display = "#{split:\t:0} {split:\t:1} [{split:\t:2}, {split:\t:3}]"
+output = "{split:\t:4}"
+
+[preview]
+command = '''
+function Invoke-Gh {
+  param([scriptblock]$Command)
+
+  $result = & $Command 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    $message = ($result | Out-String).Trim()
+    if (-not $message) {
+      $message = "gh command failed"
+    }
+    throw $message
+  }
+
+  return $result
+}
+
+$prNumber = '{split:\t:0}'
+$prTitle = '{split:\t:1}'
+$prUrl = '{split:\t:4}'
+$prError = '{split:\t:5}'
+
+if ($prNumber -eq '0') {
+  if ($prTitle -like 'Unable to load*') {
+    if (-not $prError) {
+      $prError = "Unable to load pull requests for $env:TV_REPO"
+    }
+    $prError
+    ""
+    "Open the list page: $prUrl"
+  } else {
+    "No open pull requests for $env:TV_REPO"
+    ""
+    "Open the list page: $prUrl"
+  }
+} else {
+  try {
+    Invoke-Gh { gh pr view $prNumber --repo $env:TV_REPO --comments }
+  } catch {
+    "Preview error for pull request #$prNumber`n$($_.Exception.Message)"
+  }
+}
+'''
+header = "PRs: {env:TV_REPO}"
+
+[keybindings]
+enter = "actions:open"
+
+[actions.open]
+description = "Open pull request in browser"
+command = "Start-Process '{split:\\t:4}'"
+mode = "execute"
