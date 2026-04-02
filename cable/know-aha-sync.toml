@@ -1,0 +1,10 @@
+[metadata]
+name = "know-aha-sync"
+description = "Browse Aha features with sync status (green=downloaded, yellow=pending)"
+
+[source]
+command = "know browse aha --format television"
+ansi = true
+
+[preview]
+command = "know browse aha --format television-preview --entry '{}'"

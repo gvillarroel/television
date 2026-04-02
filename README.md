@@ -22,8 +22,9 @@ This sets the user-level `TELEVISION_CONFIG` variable to this repository and syn
 
 - `dev`: projects under `~/dev`, annotated with detected stack signals and repository preview
 - `git-status`: changed files in the current repository with file preview
-- `git-branch`: local and remote branches sorted by recent activity
-- `git-log`: recent commits with full patch preview
+- `git-branch`: git branches with a patch preview for the selected branch
+- `git-log`: recent commits with a patch preview for the selected commit
+- `git-repos`: local git repositories discovered under `C:\Users`, with log previews
 - `github-repos`: repositories from the authenticated GitHub account
 - `repos`: GitHub repositories touched in the last 6 months through pins, stars, commits, PRs, reviews, or PR comments
 - `npm-scripts`: scripts from the current `package.json`

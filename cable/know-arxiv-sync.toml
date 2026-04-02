@@ -1,0 +1,10 @@
+[metadata]
+name = "know-arxiv-sync"
+description = "Browse arXiv papers with sync status (green=downloaded, yellow=pending)"
+
+[source]
+command = "know browse arxiv --format television"
+ansi = true
+
+[preview]
+command = "know browse arxiv --format television-preview --entry '{}'"

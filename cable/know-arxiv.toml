@@ -1,0 +1,10 @@
+[metadata]
+name = "know-arxiv"
+description = "Search arXiv papers"
+
+[source]
+command = "know search arxiv \"all:$SEARCH\" --format television --max-results 20 --sort-by submittedDate"
+
+[preview]
+# TODO: this should show only the selected item's Markdown, focused on the abstract
+command = "know search arxiv \"all:$SEARCH\" --format television-preview --max-results 20 --sort-by submittedDate --entry '{}'"

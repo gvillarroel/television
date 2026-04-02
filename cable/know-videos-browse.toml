@@ -1,0 +1,10 @@
+[metadata]
+name = "know-videos-browse"
+description = "Browse video transcriptions with sync status"
+
+[source]
+command = "know browse videos --format television"
+ansi = true
+
+[preview]
+command = "know browse videos --format television-preview --entry '{}'"

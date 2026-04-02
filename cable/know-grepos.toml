@@ -1,0 +1,18 @@
+[metadata]
+name = "know-grepos"
+description = "List GitHub repos → Enter browses issues, PRs & discussions"
+
+[source]
+command = "know browse github --format television"
+ansi = true
+
+[preview]
+command = "know browse github --format television-preview --entry '{}'"
+
+[keybindings]
+enter = "actions:open-repo"
+
+[actions.open-repo]
+description = "Browse issues, PRs and discussions for this repo"
+command = "tv --ansi --source-command=\"know browse github-activity --selected-row '{}' --format television\" --preview-command=\"know browse github-activity --selected-row '{}' --format television-preview --entry '{}'\""
+mode = "execute"

@@ -1,0 +1,10 @@
+[metadata]
+name = "know-confluence-sync"
+description = "Browse Confluence pages with sync status (green=downloaded, yellow=pending)"
+
+[source]
+command = "know browse confluence --format television"
+ansi = true
+
+[preview]
+command = "know browse confluence --format television-preview --entry '{}'"

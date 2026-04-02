@@ -1,15 +1,11 @@
 [metadata]
 name = "git-log"
-description = "Recent commits with full patch preview"
+description = "A channel to select from git log entries"
 requirements = ["git"]
 
 [source]
-command = "git log --color=never --decorate --oneline -n 200 | ForEach-Object { if ($_ -match '^(\\S+)\\s+(.*)$') { '{0}|{1}' -f $matches[1], $matches[2] } }"
-display = "{split:\\|:0}\t{split:\\|:1}"
-output = "{split:\\|:0}"
+command = "git log --oneline --date=short --pretty=\"format:%h %s %an %cd\""
+output = "{split: :0}"
 
 [preview]
-command = "git show --color=always --stat --patch --format=fuller '{split:\\|:0}'"
-
-[keybindings]
-shortcut = "f8"
+command = "git show -p --stat --pretty=fuller --color=always '{0}'"

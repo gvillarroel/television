@@ -1,0 +1,33 @@
+[metadata]
+name = "know-follow"
+description = "Inspect items from GitHub repos and Jira projects you interacted with (last 6 months)"
+preview_size = 70
+preview_word_wrap = true
+
+[source]
+command = "know browse follow --format television"
+ansi = true
+
+[preview]
+command = "know browse follow --format television-preview --entry {split: :0|strip_ansi} | bat --language=markdown --style=plain --paging=never --color=always"
+env = { BAT_THEME = "ansi" }
+
+
+[ui]
+input_bar_position = "top"
+input_header = "Search files:"
+input_prompt = ">> "
+
+
+[ui.preview_panel]
+size = 70
+scrollbar = true
+
+
+[keybindings]
+enter = "actions:open-url"
+
+[actions.open-url]
+description = "Open the selected item URL with PowerShell start"
+command = "powershell -NoProfile -Command \"`$url = know browse follow-url '{}'; if (`$url) { start `$url }\""
+mode = "execute"

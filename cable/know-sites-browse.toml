@@ -1,0 +1,10 @@
+[metadata]
+name = "know-sites-browse"
+description = "Browse crawled websites with sync status"
+
+[source]
+command = "know browse sites --format television"
+ansi = true
+
+[preview]
+command = "know browse sites --format television-preview --entry '{}'"

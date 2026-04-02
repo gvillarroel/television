@@ -1,0 +1,10 @@
+[metadata]
+name = "know-jira-sync"
+description = "Browse Jira issues with sync status (green=downloaded, yellow=pending)"
+
+[source]
+command = "know browse jira --format television"
+ansi = true
+
+[preview]
+command = "know browse jira --format television-preview --entry '{}'"

@@ -1,15 +1,11 @@
 [metadata]
 name = "git-branch"
-description = "Branches and remotes ordered by recent activity"
+description = "A channel to select from git branches"
 requirements = ["git"]
 
 [source]
-command = "git for-each-ref --sort=-committerdate --format='%(HEAD)|%(refname:short)|%(upstream:short)|%(committerdate:relative)|%(subject)' refs/heads refs/remotes | Where-Object { $_ -notmatch '->' }"
-display = "{split:\\|:0} {split:\\|:1}\t{split:\\|:3}\t{split:\\|:4}"
-output = "{split:\\|:1}"
+command = "git --no-pager branch --all --format=\"%(refname:short)\""
+output = "{split: :0}"
 
 [preview]
-command = "Write-Output '=== BRANCH ==='; git branch -vv --all --color=always; Write-Output ''; Write-Output '=== RECENT COMMITS ==='; git log --color=always --decorate --oneline -n 20 '{split:\\|:1}'"
-
-[keybindings]
-shortcut = "f7"
+command = "git show -p --stat --pretty=fuller --color=always '{0}'"
